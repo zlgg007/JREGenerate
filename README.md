@@ -61,7 +61,7 @@ JRE Generator 是一个基于JavaFX的图形化工具，专门用于分析Java�
 1. **从Releases下载**
    ```bash
    # 下载最新版本
-   wget https://github.com/yourusername/JREGenerate/releases/latest/download/JREGenerate.jar
+   wget https://github.com/zlgg007/JREGenerate/releases/latest/download/JREGenerate.jar
    ```
 
 2. **运行应用**
@@ -245,7 +245,7 @@ classReader.accept(collector, ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
 
 ### 克隆项目
 ```bash
-git clone https://github.com/yourusername/JREGenerate.git
+git clone https://github.com/zlgg007/JREGenerate.git
 cd JREGenerate
 ```
 
@@ -344,6 +344,6 @@ A: 不支持。本工具基于Java 9+的模块系统，只能为Java 9+的应用
 
 **如果这个项目对你有帮助，请给它一个 ⭐！**
 
-[报告Bug](https://github.com/yourusername/JREGenerate/issues) • [请求功能](https://github.com/yourusername/JREGenerate/issues) • [讨论交流](https://github.com/yourusername/JREGenerate/discussions)
+[报告Bug](https://github.com/zlgg007/JREGenerate/issues) • [请求功能](https://github.com/zlgg007/JREGenerate/issues) • [讨论交流](https://github.com/zlgg007/JREGenerate/discussions)
 
 </div> 
