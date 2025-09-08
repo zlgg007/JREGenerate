@@ -1,4 +1,4 @@
-# JRE Generator - Java运行时环境生成工具
+<img width="1202" height="832" alt="833a759c6c84175ca4ea006b054fd61d" src="https://github.com/user-attachments/assets/aa587e6c-da6b-4fc9-bd9b-ec8c554c7233" /># JRE Generator - Java运行时环境生成工具
 
 <div align="center">
 
@@ -12,7 +12,7 @@
 [功能特性](#功能特性) • [快速开始](#快速开始) • [使用指南](#使用指南) • [技术原理](#技术原理) • [贡献指南](#贡献指南)
 
 </div>
-![Uploading 833a759c6c84175ca4ea006b054fd61d.png…]()
+
 
 ## 📖 项目介绍
 
