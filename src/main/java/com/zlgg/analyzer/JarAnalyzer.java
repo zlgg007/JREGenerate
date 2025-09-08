@@ -91,20 +91,26 @@ public class JarAnalyzer {
             }
             progressCallback.accept(90.0);
             
-            // 第四阶段：检测JavaFX依赖 (90-100%)
+            // 第四阶段：检测JavaFX依赖 (90-95%)
             logger.debug("第四阶段：检测JavaFX依赖");
             boolean requiresJavaFx = detectJavaFxDependencyEnhanced(jarFile, classDependencies.values());
             if (requiresJavaFx) {
                 logger.debug("检测到JavaFX依赖，智能添加相关模块");
                 addJavaFxModules(jarFile, requiredModules, classDependencies.values());
             }
-            progressCallback.accept(100.0);
+            progressCallback.accept(95.0);
             
-            // 第五阶段：使用jdeps补充分析 (如果需要)
+            // 第五阶段：添加常用的运行时必需模块 (95-98%)
+            logger.debug("第五阶段：添加运行时必需模块");
+            addCommonRuntimeModules(requiredModules, classDependencies.values());
+            progressCallback.accept(98.0);
+            
+            // 第六阶段：使用jdeps补充分析 (98-100%)
             if (requiredModules.size() < 8) { // 如果检测到的模块太少，用jdeps补充
                 logger.debug("检测到的模块较少({}个)，使用jdeps补充分析", requiredModules.size());
                 supplementWithJdeps(jarPath, requiredModules);
             }
+            progressCallback.accept(100.0);
             
             long analysisTime = System.currentTimeMillis() - startTime;
             
@@ -500,6 +506,94 @@ public class JarAnalyzer {
         
         logger.info("为Spring Boot应用强制添加了 {} 个必需模块", addedCount);
         logger.debug("添加的模块: {}", String.join(", ", essentialModules));
+    }
+    
+    /**
+     * 添加常用的运行时必需模块
+     * 这些模块经常在运行时被间接使用，但静态分析难以发现
+     */
+    private void addCommonRuntimeModules(Set<String> requiredModules, Collection<ClassDependency> classDependencies) {
+        // 检查是否使用了日志框架（logback、slf4j等）
+        boolean hasLoggingFramework = classDependencies.stream()
+            .flatMap(dep -> dep.getDependencies().stream())
+            .anyMatch(className -> 
+                className.startsWith("ch.qos.logback.") ||
+                className.startsWith("org.slf4j.") ||
+                className.startsWith("java.util.logging.") ||
+                className.startsWith("org.apache.logging.log4j.")
+            );
+        
+        if (hasLoggingFramework) {
+            // 日志框架通常需要这些模块
+            String[] loggingModules = {
+                "java.naming",           // JNDI支持，Logback等需要
+                "java.logging",          // Java内置日志支持
+                "java.management"        // JMX支持，用于日志管理
+            };
+            
+            int addedCount = 0;
+            for (String module : loggingModules) {
+                if (requiredModules.add(module)) {
+                    addedCount++;
+                }
+            }
+            
+            if (addedCount > 0) {
+                logger.debug("检测到日志框架，添加了 {} 个日志相关模块", addedCount);
+            }
+        }
+        
+        // 检查是否使用了JavaFX（额外的运行时模块）
+        boolean hasJavaFx = classDependencies.stream()
+            .anyMatch(ClassDependency::isJavaFxClass);
+            
+        if (hasJavaFx) {
+            // JavaFX应用可能需要的额外模块
+            String[] javafxRuntimeModules = {
+                "java.desktop",          // AWT/Swing集成
+                "java.datatransfer",     // 剪贴板支持
+                "java.prefs"             // 偏好设置API
+            };
+            
+            int addedCount = 0;
+            for (String module : javafxRuntimeModules) {
+                if (requiredModules.add(module)) {
+                    addedCount++;
+                }
+            }
+            
+            if (addedCount > 0) {
+                logger.debug("检测到JavaFX应用，添加了 {} 个JavaFX运行时模块", addedCount);
+            }
+        }
+        
+        // 检查是否使用了反射或动态加载
+        boolean hasReflection = classDependencies.stream()
+            .flatMap(dep -> dep.getDependencies().stream())
+            .anyMatch(className -> 
+                className.startsWith("java.lang.reflect.") ||
+                className.startsWith("java.lang.Class") ||
+                className.contains("ClassLoader")
+            );
+            
+        if (hasReflection) {
+            // 反射和动态加载可能需要的模块
+            String[] reflectionModules = {
+                "java.compiler",         // 动态编译支持
+                "jdk.unsupported"        // 访问内部API
+            };
+            
+            int addedCount = 0;
+            for (String module : reflectionModules) {
+                if (requiredModules.add(module)) {
+                    addedCount++;
+                }
+            }
+            
+            if (addedCount > 0) {
+                logger.debug("检测到反射使用，添加了 {} 个反射相关模块", addedCount);
+            }
+        }
     }
     
     /**
