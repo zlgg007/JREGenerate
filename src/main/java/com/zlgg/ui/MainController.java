@@ -58,6 +58,7 @@ public class MainController implements Initializable {
     @FXML private CheckBox stripDebugCheckBox;
     @FXML private CheckBox noManPagesCheckBox;
     @FXML private CheckBox noHeaderFilesCheckBox;
+    @FXML private CheckBox enableAdvancedFeaturesCheckBox;
     @FXML private ComboBox<String> compressionLevelComboBox;
     @FXML private VBox logContainer;
     
@@ -129,6 +130,7 @@ public class MainController implements Initializable {
         stripDebugCheckBox.setSelected(true);
         noManPagesCheckBox.setSelected(true);
         noHeaderFilesCheckBox.setSelected(true);
+        enableAdvancedFeaturesCheckBox.setSelected(false); // 默认关闭，用户可根据需要启用
         
         // 初始状态设置
         buildJreButton.setDisable(true);
@@ -258,6 +260,9 @@ public class MainController implements Initializable {
                 
                 LogManager.logInfo("🔍 开始分析JAR文件: " + jarFile.getName());
                 
+                // 创建构建配置以传递给分析器
+                BuildConfiguration buildConfig = createBuildConfiguration();
+                
                 return jarAnalyzer.analyze(jarFile.toPath(), progress -> {
                     Platform.runLater(() -> {
                         updateProgress(progress, 100);
@@ -277,7 +282,7 @@ public class MainController implements Initializable {
                             LogManager.logStepComplete("JavaFX依赖检测完成");
                         }
                     });
-                });
+                }, buildConfig);
             }
             
             @Override
@@ -481,7 +486,8 @@ public class MainController implements Initializable {
             .stripDebug(stripDebugCheckBox.isSelected())
             .noManPages(noManPagesCheckBox.isSelected())
             .noHeaderFiles(noHeaderFilesCheckBox.isSelected())
-            .compressionLevel(Integer.parseInt(compressionLevelComboBox.getValue()));
+            .compressionLevel(Integer.parseInt(compressionLevelComboBox.getValue()))
+            .enableAdvancedFeatures(enableAdvancedFeaturesCheckBox.isSelected());
         
         // JavaFX配置
         boolean enableJavaFx = enableJavafxCheckBox.isSelected();
@@ -624,6 +630,7 @@ public class MainController implements Initializable {
         buildConfig.setStripDebugInfo(stripDebugCheckBox.isSelected());
         buildConfig.setNoManPages(noManPagesCheckBox.isSelected());
         buildConfig.setNoHeaderFiles(noHeaderFilesCheckBox.isSelected());
+        buildConfig.setEnableAdvancedFeatures(enableAdvancedFeaturesCheckBox.isSelected());
         
         // 压缩级别
         String compressionLevel = compressionLevelComboBox.getValue();
@@ -666,6 +673,7 @@ public class MainController implements Initializable {
             stripDebugCheckBox.setSelected(buildConfig.isStripDebugInfo());
             noManPagesCheckBox.setSelected(buildConfig.isNoManPages());
             noHeaderFilesCheckBox.setSelected(buildConfig.isNoHeaderFiles());
+            enableAdvancedFeaturesCheckBox.setSelected(buildConfig.isEnableAdvancedFeatures());
             compressionLevelComboBox.setValue(String.valueOf(buildConfig.getCompressionLevel()));
         }
         

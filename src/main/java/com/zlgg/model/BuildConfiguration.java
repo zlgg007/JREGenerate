@@ -18,6 +18,7 @@ public class BuildConfiguration {
     private final boolean noHeaderFiles;
     private final int compressionLevel;
     private final boolean includeJavaFx;
+    private final boolean enableAdvancedFeatures;  // 新增：启用高级功能支持
     
     private BuildConfiguration(Builder builder) {
         this.outputPath = builder.outputPath;
@@ -28,6 +29,7 @@ public class BuildConfiguration {
         this.noHeaderFiles = builder.noHeaderFiles;
         this.compressionLevel = builder.compressionLevel;
         this.includeJavaFx = builder.includeJavaFx;
+        this.enableAdvancedFeatures = builder.enableAdvancedFeatures;
     }
     
     public Path getOutputPath() {
@@ -62,6 +64,10 @@ public class BuildConfiguration {
         return includeJavaFx;
     }
     
+    public boolean isEnableAdvancedFeatures() {
+        return enableAdvancedFeatures;
+    }
+    
     public static Builder builder() {
         return new Builder();
     }
@@ -75,6 +81,7 @@ public class BuildConfiguration {
         private boolean noHeaderFiles = true;
         private int compressionLevel = 2;
         private boolean includeJavaFx = false;
+        private boolean enableAdvancedFeatures = false;
         
         public Builder outputPath(Path outputPath) {
             this.outputPath = outputPath;
@@ -116,6 +123,11 @@ public class BuildConfiguration {
             this.includeJavaFx = includeJavaFx;
             return this;
         }
+
+        public Builder enableAdvancedFeatures(boolean enableAdvancedFeatures) {
+            this.enableAdvancedFeatures = enableAdvancedFeatures;
+            return this;
+        }
         
         public BuildConfiguration build() {
             if (outputPath == null) {
@@ -136,6 +148,7 @@ public class BuildConfiguration {
                 ", noHeaderFiles=" + noHeaderFiles +
                 ", compressionLevel=" + compressionLevel +
                 ", includeJavaFx=" + includeJavaFx +
+                ", enableAdvancedFeatures=" + enableAdvancedFeatures +
                 '}';
     }
 } 

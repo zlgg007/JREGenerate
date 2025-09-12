@@ -3,6 +3,7 @@ package com.zlgg.analyzer;
 import com.zlgg.model.AnalysisResult;
 import com.zlgg.model.ClassDependency;
 import com.zlgg.model.JarInfo;
+import com.zlgg.model.BuildConfiguration;
 import com.zlgg.util.ModuleMapper;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
@@ -102,7 +103,88 @@ public class JarAnalyzer {
             
             // 第五阶段：添加常用的运行时必需模块 (95-98%)
             logger.debug("第五阶段：添加运行时必需模块");
-            addCommonRuntimeModules(requiredModules, classDependencies.values());
+            addCommonRuntimeModules(requiredModules, classDependencies.values(), null);
+            progressCallback.accept(98.0);
+            
+            // 第六阶段：使用jdeps补充分析 (98-100%)
+            if (requiredModules.size() < 8) { // 如果检测到的模块太少，用jdeps补充
+                logger.debug("检测到的模块较少({}个)，使用jdeps补充分析", requiredModules.size());
+                supplementWithJdeps(jarPath, requiredModules);
+            }
+            progressCallback.accept(100.0);
+            
+            long analysisTime = System.currentTimeMillis() - startTime;
+            
+            AnalysisResult result = new AnalysisResult(
+                jarInfo,
+                requiredModules,
+                new ArrayList<>(classDependencies.values()),
+                new ArrayList<>(externalJars),
+                requiresJavaFx,
+                analysisTime
+            );
+            
+            // 只在控制台记录最终的分析结果摘要
+            logger.info("JAR分析完成: {}ms, {}个模块, {}个类", 
+                       analysisTime, requiredModules.size(), classDependencies.size());
+            
+            return result;
+        }
+    }
+    
+    /**
+     * 分析JAR文件
+     * 
+     * @param jarPath JAR文件路径
+     * @param progressCallback 进度回调函数
+     * @param buildConfig 构建配置
+     * @return 分析结果
+     * @throws IOException 文件读取异常
+     */
+    public AnalysisResult analyze(Path jarPath, Consumer<Double> progressCallback, BuildConfiguration buildConfig) throws IOException {
+        long startTime = System.currentTimeMillis();
+        
+        // 初始化进度
+        progressCallback.accept(0.0);
+        
+        try (JarFile jarFile = new JarFile(jarPath.toFile())) {
+            // 第一阶段：收集基本信息 (0-20%)
+            logger.debug("第一阶段：收集JAR基本信息");
+            JarInfo jarInfo = collectJarInfo(jarFile, jarPath);
+            progressCallback.accept(20.0);
+            
+            // 第二阶段：分析类文件 (20-70%)
+            logger.debug("第二阶段：分析类文件依赖关系");
+            Map<String, ClassDependency> classDependencies = new ConcurrentHashMap<>();
+            Set<String> requiredModules = ConcurrentHashMap.newKeySet();
+            Set<String> externalJars = ConcurrentHashMap.newKeySet();
+            
+            analyzeClasses(jarFile, classDependencies, requiredModules, externalJars, 
+                          progress -> progressCallback.accept(20.0 + progress * 0.5));
+            
+            // 第三阶段：处理Spring Boot结构 (70-90%)
+            if (jarInfo.isSpringBootJar()) {
+                logger.debug("第三阶段：分析Spring Boot依赖结构");
+                analyzeSpringBootDependencies(jarFile, classDependencies, requiredModules, externalJars,
+                                            progress -> progressCallback.accept(70.0 + progress * 0.2));
+                
+                // 强制添加Spring Boot必需的模块（解决运行时动态加载的问题）
+                addSpringBootEssentialModules(requiredModules);
+            }
+            progressCallback.accept(90.0);
+            
+            // 第四阶段：检测JavaFX依赖 (90-95%)
+            logger.debug("第四阶段：检测JavaFX依赖");
+            boolean requiresJavaFx = detectJavaFxDependencyEnhanced(jarFile, classDependencies.values());
+            if (requiresJavaFx) {
+                logger.debug("检测到JavaFX依赖，智能添加相关模块");
+                addJavaFxModules(jarFile, requiredModules, classDependencies.values());
+            }
+            progressCallback.accept(95.0);
+            
+            // 第五阶段：添加常用的运行时必需模块 (95-98%)
+            logger.debug("第五阶段：添加运行时必需模块");
+            addCommonRuntimeModules(requiredModules, classDependencies.values(), buildConfig);
             progressCallback.accept(98.0);
             
             // 第六阶段：使用jdeps补充分析 (98-100%)
@@ -378,7 +460,7 @@ public class JarAnalyzer {
         
         // 检查是否需要Web模块
         boolean hasWebDependencies = needsJavaFxModule(classDependencies, "javafx.scene.web");
-        boolean hasWebInFxml = hasWebComponentsInFxml(jarFile);
+        boolean hasWebInFxml = hasResourceFiles(jarFile, ".fxml") && hasWebComponentsInFxml(jarFile);
         logger.debug("JavaFX Web检测: 类依赖={}, FXML组件={}", hasWebDependencies, hasWebInFxml);
         
         if (hasWebDependencies || hasWebInFxml) {
@@ -512,7 +594,7 @@ public class JarAnalyzer {
      * 添加常用的运行时必需模块
      * 这些模块经常在运行时被间接使用，但静态分析难以发现
      */
-    private void addCommonRuntimeModules(Set<String> requiredModules, Collection<ClassDependency> classDependencies) {
+    private void addCommonRuntimeModules(Set<String> requiredModules, Collection<ClassDependency> classDependencies, BuildConfiguration buildConfig) {
         // 检查是否使用了日志框架（logback、slf4j等）
         boolean hasLoggingFramework = classDependencies.stream()
             .flatMap(dep -> dep.getDependencies().stream())
@@ -580,7 +662,7 @@ public class JarAnalyzer {
             // 反射和动态加载可能需要的模块
             String[] reflectionModules = {
                 "java.compiler",         // 动态编译支持
-                "jdk.unsupported"        // 访问内部API
+                "java.instrument"        // 字节码增强支持
             };
             
             int addedCount = 0;
@@ -593,6 +675,144 @@ public class JarAnalyzer {
             if (addedCount > 0) {
                 logger.debug("检测到反射使用，添加了 {} 个反射相关模块", addedCount);
             }
+        }
+        
+        // 添加高级功能支持模块 (javaagent、JNI、keytool、jarsigner等)
+        addAdvancedFunctionalityModules(requiredModules, classDependencies, buildConfig);
+    }
+    
+    /**
+     * 添加高级功能支持模块
+     * 支持 javaagent、agentpath、JNI、JNA、keytool、jarsigner 等功能
+     */
+    private void addAdvancedFunctionalityModules(Set<String> requiredModules, Collection<ClassDependency> classDependencies, BuildConfiguration buildConfig) {
+        // 如果没有启用高级功能支持，跳过
+        if (buildConfig != null && !buildConfig.isEnableAdvancedFeatures()) {
+            logger.debug("高级功能支持未启用，跳过高级模块添加");
+            return;
+        }
+        
+        // 检测是否可能使用JavaAgent或字节码增强
+        boolean mayUseAgent = classDependencies.stream()
+            .flatMap(dep -> dep.getDependencies().stream())
+            .anyMatch(className -> 
+                className.startsWith("java.lang.instrument.") ||
+                className.contains("Agent") ||
+                className.contains("Instrumentation") ||
+                className.startsWith("net.bytebuddy.") ||
+                className.startsWith("org.objectweb.asm.") ||
+                className.startsWith("javassist.") ||
+                className.startsWith("org.springframework.aop.")
+            );
+        
+        // 检测是否可能使用JNI/JNA
+        boolean mayUseNative = classDependencies.stream()
+            .flatMap(dep -> dep.getDependencies().stream())
+            .anyMatch(className -> 
+                className.startsWith("com.sun.jna.") ||
+                className.contains("Native") ||
+                className.contains("JNI") ||
+                className.startsWith("jnr.ffi.")
+            );
+        
+        // 检测是否可能使用加密/签名功能
+        boolean mayUseCrypto = classDependencies.stream()
+            .flatMap(dep -> dep.getDependencies().stream())
+            .anyMatch(className -> 
+                className.startsWith("java.security.") ||
+                className.startsWith("javax.crypto.") ||
+                className.contains("Certificate") ||
+                className.contains("KeyStore") ||
+                className.contains("Signature") ||
+                className.startsWith("org.bouncycastle.")
+            );
+        
+        // JavaAgent/AgentPath支持模块
+        if (mayUseAgent) {
+            String[] agentModules = {
+                "java.instrument",        // Java Instrumentation API (javaagent核心)
+                "java.management",        // JMX管理API (Agent监控常用)
+                "jdk.attach",            // 动态附加API (agentpath需要)
+                "jdk.management.agent",   // JMX管理代理
+                "jdk.unsupported"        // 内部API访问 (某些Agent框架需要)
+            };
+            
+            int addedCount = 0;
+            for (String module : agentModules) {
+                if (requiredModules.add(module)) {
+                    addedCount++;
+                }
+            }
+            
+            if (addedCount > 0) {
+                logger.info("检测到可能使用JavaAgent，添加了 {} 个Agent支持模块", addedCount);
+                logger.debug("Agent模块: {}", String.join(", ", agentModules));
+            }
+        }
+        
+        // JNI/JNA支持模块
+        if (mayUseNative) {
+            String[] nativeModules = {
+                "jdk.unsupported"        // JNA需要访问一些内部API
+                // 注意：JNI的核心API在java.base中，无需额外模块
+            };
+            
+            int addedCount = 0;
+            for (String module : nativeModules) {
+                if (requiredModules.add(module)) {
+                    addedCount++;
+                }
+            }
+            
+            if (addedCount > 0) {
+                logger.info("检测到可能使用JNI/JNA，添加了 {} 个本地接口支持模块", addedCount);
+                logger.debug("Native模块: {}", String.join(", ", nativeModules));
+            }
+        }
+        
+        // 加密/签名工具支持模块 (keytool、jarsigner等)
+        if (mayUseCrypto) {
+            String[] cryptoModules = {
+                "jdk.crypto.ec",         // 椭圆曲线加密算法 (现代加密标准)
+                "jdk.crypto.cryptoki",   // PKCS#11硬件加密支持
+                "java.security.jgss",    // Kerberos/JGSS认证支持
+                "jdk.security.auth",     // 扩展安全认证支持
+                "java.naming",           // LDAP证书存储支持
+                "jdk.jartool"           // JAR工具支持 (包含jarsigner)
+            };
+            
+            int addedCount = 0;
+            for (String module : cryptoModules) {
+                if (requiredModules.add(module)) {
+                    addedCount++;
+                }
+            }
+            
+            if (addedCount > 0) {
+                logger.info("检测到加密/安全功能使用，添加了 {} 个加密支持模块", addedCount);
+                logger.debug("加密模块: {}", String.join(", ", cryptoModules));
+            }
+        }
+        
+        // 总是添加一些常用的高级功能模块（适用于企业级应用）
+        String[] commonAdvancedModules = {
+            "java.instrument",        // 字节码增强 (Spring AOP等框架常用)
+            "jdk.unsupported",       // 内部API访问 (许多框架需要)
+            "jdk.crypto.ec",         // 现代加密算法支持
+            "jdk.management",        // 高级JMX管理功能
+            "jdk.jartool"           // JAR工具 (包含keytool和jarsigner)
+        };
+        
+        int alwaysAddedCount = 0;
+        for (String module : commonAdvancedModules) {
+            if (requiredModules.add(module)) {
+                alwaysAddedCount++;
+            }
+        }
+        
+        if (alwaysAddedCount > 0) {
+            logger.info("默认添加了 {} 个企业级应用常用的高级功能模块", alwaysAddedCount);
+            logger.debug("默认高级模块: {}", String.join(", ", commonAdvancedModules));
         }
     }
     

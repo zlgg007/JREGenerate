@@ -37,6 +37,7 @@ public class AppConfig {
         private boolean stripDebugInfo = true;
         private boolean noManPages = true;
         private boolean noHeaderFiles = true;
+        private boolean enableAdvancedFeatures = false;  // 高级功能支持
         private int compressionLevel = 2;
         
         // Getters and Setters
@@ -78,6 +79,14 @@ public class AppConfig {
         
         public void setCompressionLevel(int compressionLevel) {
             this.compressionLevel = compressionLevel;
+        }
+        
+        public boolean isEnableAdvancedFeatures() {
+            return enableAdvancedFeatures;
+        }
+        
+        public void setEnableAdvancedFeatures(boolean enableAdvancedFeatures) {
+            this.enableAdvancedFeatures = enableAdvancedFeatures;
         }
     }
     

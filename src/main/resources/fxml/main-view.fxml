@@ -55,7 +55,9 @@
                   <CheckBox fx:id="stripDebugCheckBox" text="移除调试信息" GridPane.columnIndex="1" GridPane.rowIndex="0" />
                   <CheckBox fx:id="noManPagesCheckBox" text="不包含手册页" GridPane.columnIndex="0" GridPane.rowIndex="1" />
                   <CheckBox fx:id="noHeaderFilesCheckBox" text="不包含头文件" GridPane.columnIndex="1" GridPane.rowIndex="1" />
-                  <HBox alignment="CENTER_LEFT" spacing="10" GridPane.columnIndex="0" GridPane.columnSpan="2" GridPane.rowIndex="2">
+                  <CheckBox fx:id="enableAdvancedFeaturesCheckBox" text="启用高级功能支持" GridPane.columnIndex="0" GridPane.rowIndex="2" />
+                  <Label styleClass="hint-text" text="(支持javaagent、JNI、keytool等)" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+                  <HBox alignment="CENTER_LEFT" spacing="10" GridPane.columnIndex="0" GridPane.columnSpan="2" GridPane.rowIndex="3">
                      <Label text="压缩级别:" />
                      <ComboBox fx:id="compressionLevelComboBox" prefWidth="80" />
                   </HBox>
