@@ -314,6 +314,66 @@ public class ModuleMapper {
         // JavaFX Swing集成模块
         map.put("javafx.embed.swing", "javafx.swing");
         
+        // jdk.httpserver 模块 - HTTP服务器API
+        map.put("com.sun.net.httpserver", "jdk.httpserver");
+        map.put("com.sun.net.httpserver.spi", "jdk.httpserver");
+        
+        // jdk.unsupported 模块 - 内部API访问
+        map.put("sun.misc", "jdk.unsupported");
+        map.put("sun.reflect", "jdk.unsupported");
+        
+        // jdk.management 模块 - 高级JMX管理
+        map.put("com.sun.management", "jdk.management");
+        
+        // jdk.management.agent 模块 - JMX管理代理
+        map.put("jdk.management.agent", "jdk.management.agent");
+        
+        // jdk.attach 模块 - 动态附加API
+        map.put("com.sun.tools.attach", "jdk.attach");
+        map.put("com.sun.tools.attach.spi", "jdk.attach");
+        
+        // jdk.jartool 模块 - JAR工具(jarsigner等)
+        map.put("com.sun.jarsigner", "jdk.jartool");
+        map.put("sun.security.tools.jarsigner", "jdk.jartool");
+        
+        // jdk.crypto.ec 模块 - 椭圆曲线加密
+        map.put("sun.security.ec", "jdk.crypto.ec");
+        
+        // jdk.crypto.cryptoki 模块 - PKCS#11加密
+        map.put("sun.security.pkcs11", "jdk.crypto.cryptoki");
+        
+        // jdk.security.auth 模块 - 扩展安全认证
+        map.put("com.sun.security.auth", "jdk.security.auth");
+        map.put("com.sun.security.auth.callback", "jdk.security.auth");
+        map.put("com.sun.security.auth.login", "jdk.security.auth");
+        map.put("com.sun.security.auth.module", "jdk.security.auth");
+        
+        // jdk.localedata 模块 - 本地化数据
+        map.put("sun.text.resources", "jdk.localedata");
+        map.put("sun.util.resources", "jdk.localedata");
+        
+        // jdk.jfr 模块 - Java Flight Recorder
+        map.put("jdk.jfr", "jdk.jfr");
+        map.put("jdk.jfr.consumer", "jdk.jfr");
+        
+        // jdk.zipfs 模块 - ZIP文件系统
+        map.put("jdk.nio.zipfs", "jdk.zipfs");
+        
+        // jdk.jsobject 模块 - JavaScript对象
+        map.put("netscape.javascript", "jdk.jsobject");
+        
+        // jdk.xml.dom 模块 - W3C DOM扩展
+        map.put("org.w3c.dom.css", "jdk.xml.dom");
+        map.put("org.w3c.dom.html", "jdk.xml.dom");
+        map.put("org.w3c.dom.stylesheets", "jdk.xml.dom");
+        map.put("org.w3c.dom.xpath", "jdk.xml.dom");
+        
+        // java.datatransfer 模块 - 数据传输
+        map.put("java.awt.datatransfer", "java.datatransfer");
+        
+        // java.transaction.xa 模块 - XA事务
+        map.put("javax.transaction.xa", "java.transaction.xa");
+        
         return map;
     }
 } 
